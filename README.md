@@ -17,5 +17,5 @@ npx --yes serve .
 ## 配置
 
 - `TERM.week1Start`：第 1 周周一（当前为 `2026-09-07`）
-- `PERIODS`：各节次起止时间（请按学校作息核对）
-- `SCHEDULE`：课表数据
+- `PERIODS_A` / `PERIODS_B`：教学楼与行政楼作息（第 3–4 节相差 20 分钟）
+- `SCHEDULE`：课表数据（教室以「行」开头按行政楼作息）
