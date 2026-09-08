@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#f6f3ee" />
+  <title>今日课表 · 软工4班</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@450;550;650;700&family=Noto+Sans+SC:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f6f3ee;
+      --ink: #1a1c1e;
+      --ink-2: #5c636a;
+      --ink-3: #8a9198;
+      --line: rgba(26, 28, 30, 0.08);
+      --accent: #0f6e56;
+      --accent-2: #0b4f3d;
+      --accent-soft: rgba(15, 110, 86, 0.09);
+      --next: #9a4d0f;
+      --next-soft: rgba(154, 77, 15, 0.09);
+      --safe-b: env(safe-area-inset-bottom, 0px);
+      --font: "Instrument Sans", "Noto Sans SC", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100dvh;
+      font-family: var(--font);
+      color: var(--ink);
+      background:
+        radial-gradient(900px 420px at 85% -5%, rgba(15, 110, 86, 0.10), transparent 55%),
+        radial-gradient(700px 380px at -10% 20%, rgba(154, 77, 15, 0.06), transparent 50%),
+        linear-gradient(180deg, #faf8f4 0%, var(--bg) 45%, #efebe3 100%);
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      padding: 32px 22px calc(36px + var(--safe-b));
+    }
+
+    .wrap { max-width: 420px; margin: 0 auto; }
+
+    header { margin-bottom: 30px; animation: rise .55s ease both; }
+
+    .brand {
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 8vw, 2.45rem);
+      font-weight: 700;
+      letter-spacing: -0.045em;
+      line-height: 1.08;
+    }
+
+    .meta {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 10px;
+      color: var(--ink-2);
+      font-size: 14px;
+      font-weight: 450;
+    }
+
+    .meta i {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--ink-3);
+      display: inline-block;
+    }
+
+    .focus {
+      margin-bottom: 34px;
+      animation: rise .6s ease .04s both;
+    }
+
+    .focus-kicker {
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .focus.done .focus-kicker,
+    .focus.rest .focus-kicker { color: var(--ink-3); }
+
+    .focus.next .focus-kicker { color: var(--next); }
+
+    .focus-title {
+      font-size: clamp(1.65rem, 6.5vw, 1.95rem);
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      line-height: 1.2;
+    }
+
+    .focus-sub {
+      margin-top: 12px;
+      font-size: 15px;
+      line-height: 1.55;
+      color: var(--ink-2);
+      max-width: 22em;
+    }
+
+    .focus-sub b {
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .section {
+      font-size: 12px;
+      font-weight: 650;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-3);
+      margin: 0 0 14px;
+      animation: rise .6s ease .08s both;
+    }
+
+    .list {
+      display: flex;
+      flex-direction: column;
+      animation: rise .65s ease .1s both;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 14px;
+      padding: 18px 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .row:last-child { border-bottom: 1px solid var(--line); }
+
+    .row.now {
+      background: linear-gradient(90deg, var(--accent-soft), transparent 70%);
+      margin: 0 -12px;
+      padding-left: 12px;
+      padding-right: 12px;
+      border-radius: 4px;
+      border-top-color: transparent;
+    }
+
+    .row.next {
+      background: linear-gradient(90deg, var(--next-soft), transparent 70%);
+      margin: 0 -12px;
+      padding-left: 12px;
+      padding-right: 12px;
+      border-radius: 4px;
+      border-top-color: transparent;
+    }
+
+    .row.done { opacity: 0.48; }
+
+    .when {
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--ink-3);
+      font-variant-numeric: tabular-nums;
+      font-weight: 550;
+      padding-top: 3px;
+    }
+
+    .row.now .when { color: var(--accent-2); }
+    .row.next .when { color: var(--next); }
+
+    .name {
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+    }
+
+    .info {
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--ink-2);
+      line-height: 1.45;
+    }
+
+    .tag {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.06em;
+      color: var(--accent-2);
+    }
+
+    .row.next .tag { color: var(--next); }
+
+    .empty {
+      padding: 28px 0 8px;
+      color: var(--ink-2);
+      font-size: 15px;
+      line-height: 1.5;
+      border-top: 1px solid var(--line);
+      animation: rise .65s ease .1s both;
+    }
+
+    footer {
+      margin-top: 36px;
+      font-size: 12px;
+      color: var(--ink-3);
+      line-height: 1.55;
+      animation: rise .7s ease .16s both;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">软工专升本 4班</div>
+      <h1>今日课表</h1>
+      <div class="meta" id="meta"></div>
+    </header>
+
+    <section class="focus" id="focus"></section>
+
+    <div class="section" id="sectionLabel">本日安排</div>
+    <div class="list" id="list"></div>
+
+    <footer id="footer"></footer>
+  </div>
+
+  <script>
+    // 第1周：2026-09-07（周一）。今天是上课第一周。
+    const TERM = {
+      week1Start: "2026-09-07",
+      label: "2026-2027-1",
+    };
+
+    // 常见大学作息；若与学校不符，只改这里即可
+    const PERIODS = {
+      "1-2": { start: "08:00", end: "09:40" },
+      "3-4": { start: "10:00", end: "11:40" },
+      "5-6": { start: "14:00", end: "15:40" },
+      "7-8": { start: "16:00", end: "17:40" },
+      "9": { start: "19:00", end: "19:45" },
+      "10-11": { start: "19:55", end: "21:30" },
+    };
+
+    const SCHEDULE = [
+      { day: 1, period: "1-2", name: "数据库结构与算法", teacher: "徐锦春", room: "1108", weeks: "all" },
+      { day: 1, period: "5-6", name: "马克思主义原理", teacher: "陈祖德", room: "2511", weeks: "all" },
+      { day: 1, period: "7-8", name: "数据库原理", teacher: "杨洁", room: "2404", weeks: "all" },
+
+      { day: 2, period: "1-2", name: "Python程序设计", teacher: "李永康", room: "1304", weeks: "even" },
+      { day: 2, period: "3-4", name: "数据库结构与算法", teacher: "徐锦春", room: "1407", weeks: "all" },
+
+      { day: 3, period: "1-2", name: "计算机网络技术", teacher: "陈跃辉", room: "2502", weeks: "all" },
+      { day: 3, period: "5-6", name: "软件工程导论", teacher: "刘浪", room: "1503", weeks: "all" },
+      { day: 3, period: "7-8", name: "Python程序设计", teacher: "李永康", room: "1407", weeks: "all" },
+
+      { day: 4, period: "1-2", name: "离散数学", teacher: "陈琼", room: "1509", weeks: "odd" },
+      { day: 4, period: "1-2", name: "马克思主义原理", teacher: "陈祖德", room: "1203", weeks: "even" },
+      { day: 4, period: "5-6", name: "人工智能", teacher: "李兆彬", room: "1204", weeks: "odd" },
+      { day: 4, period: "5-6", name: "计算机网络技术", teacher: "陈跃辉", room: "2501", weeks: "even" },
+      { day: 4, period: "7-8", name: "软件工程导论", teacher: "刘浪", room: "行209", weeks: "odd" },
+      { day: 4, period: "7-8", name: "人工智能", teacher: "李兆彬", room: "1407", weeks: "even" },
+
+      { day: 5, period: "1-2", name: "计算机网络技术", teacher: "陈跃辉", room: "行208", weeks: "even" },
+      { day: 5, period: "3-4", name: "数据库原理", teacher: "杨洁", room: "行205", weeks: "all" },
+      { day: 5, period: "5-6", name: "离散数学", teacher: "陈琼", room: "1306", weeks: "all" },
+    ];
+
+    const DAY_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+
+    function parseYMD(ymd) {
+      const [y, m, d] = ymd.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function startOfDay(d) {
+      return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    }
+
+    function getWeekNumber(now) {
+      const w1 = startOfDay(parseYMD(TERM.week1Start));
+      const today = startOfDay(now);
+      const diff = Math.floor((today - w1) / 86400000);
+      if (diff < 0) return 0;
+      return Math.floor(diff / 7) + 1;
+    }
+
+    function oddWeek(week) {
+      return week % 2 === 1;
+    }
+
+    function matchesWeek(entry, week) {
+      if (week <= 0) return false;
+      if (entry.weeks === "all") return true;
+      if (entry.weeks === "odd") return oddWeek(week);
+      if (entry.weeks === "even") return !oddWeek(week);
+      return false;
+    }
+
+    function toMin(hhmm) {
+      const [h, m] = hhmm.split(":").map(Number);
+      return h * 60 + m;
+    }
+
+    function nowMin(now) {
+      return now.getHours() * 60 + now.getMinutes();
+    }
+
+    function periodIndex(period) {
+      return Object.keys(PERIODS).indexOf(period);
+    }
+
+    function statusOf(entry, now) {
+      const p = PERIODS[entry.period];
+      const n = nowMin(now);
+      const s = toMin(p.start);
+      const e = toMin(p.end);
+      if (n < s) return "upcoming";
+      if (n <= e) return "now";
+      return "done";
+    }
+
+    function esc(s) {
+      return String(s)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function render() {
+      const now = new Date();
+      const week = getWeekNumber(now);
+      const jsDay = now.getDay();
+      const uniDay = jsDay === 0 ? 7 : jsDay;
+      const parity = week > 0 ? (oddWeek(week) ? "单周" : "双周") : "未开学";
+
+      document.getElementById("meta").innerHTML = `
+        <span>${now.getMonth() + 1}月${now.getDate()}日 · ${DAY_NAMES[jsDay]}</span>
+        <i></i>
+        <span>第 ${week > 0 ? week : "—"} 周 · ${parity}</span>
+      `;
+
+      const today = SCHEDULE
+        .filter((c) => c.day === uniDay && matchesWeek(c, week))
+        .sort((a, b) => periodIndex(a.period) - periodIndex(b.period));
+
+      const focus = document.getElementById("focus");
+      const list = document.getElementById("list");
+      const section = document.getElementById("sectionLabel");
+
+      if (uniDay > 5 || today.length === 0) {
+        focus.className = "focus rest";
+        focus.innerHTML = `
+          <div class="focus-kicker">今日状态</div>
+          <div class="focus-title">${uniDay > 5 ? "周末休息" : "今天没有课"}</div>
+          <div class="focus-sub">打开链接即可查看当天安排，无需登录。</div>
+        `;
+        section.hidden = true;
+        list.innerHTML = `<div class="empty">本日无课程安排</div>`;
+      } else {
+        section.hidden = false;
+        const current = today.find((c) => statusOf(c, now) === "now");
+        const next = today.find((c) => statusOf(c, now) === "upcoming");
+
+        if (current) {
+          focus.className = "focus";
+          focus.innerHTML = `
+            <div class="focus-kicker">正在上课</div>
+            <div class="focus-title">${esc(current.name)}</div>
+            <div class="focus-sub">
+              <b>${esc(PERIODS[current.period].start)}–${esc(PERIODS[current.period].end)}</b>
+              · 教室 ${esc(current.room)} · ${esc(current.teacher)}
+            </div>
+          `;
+        } else if (next) {
+          focus.className = "focus next";
+          focus.innerHTML = `
+            <div class="focus-kicker">下一节</div>
+            <div class="focus-title">${esc(next.name)}</div>
+            <div class="focus-sub">
+              <b>${esc(PERIODS[next.period].start)}</b> 开始
+              · 教室 ${esc(next.room)} · ${esc(next.teacher)}
+            </div>
+          `;
+        } else {
+          focus.className = "focus done";
+          focus.innerHTML = `
+            <div class="focus-kicker">今日状态</div>
+            <div class="focus-title">今天的课已上完</div>
+            <div class="focus-sub">共 ${today.length} 节，收工。</div>
+          `;
+        }
+
+        list.innerHTML = today
+          .map((c) => {
+            const st = statusOf(c, now);
+            const p = PERIODS[c.period];
+            let cls = "row";
+            let tag = "";
+            if (st === "now") {
+              cls += " now";
+              tag = `<div class="tag">进行中</div>`;
+            } else if (st === "upcoming" && next === c && !current) {
+              cls += " next";
+              tag = `<div class="tag">下一节</div>`;
+            } else if (st === "done") {
+              cls += " done";
+            }
+
+            return `
+              <article class="${cls}">
+                <div class="when">${esc(p.start)}<br>${esc(p.end)}</div>
+                <div>
+                  <div class="name">${esc(c.name)}</div>
+                  <div class="info">${esc(c.room)} · ${esc(c.teacher)} · ${esc(c.period)}节</div>
+                  ${tag}
+                </div>
+              </article>
+            `;
+          })
+          .join("");
+      }
+
+      document.getElementById("footer").textContent =
+        `${TERM.label} · 作息若不准可改 PERIODS · 点开即用，无需登录`;
+    }
+
+    render();
+    setInterval(render, 30_000);
+  </script>
+</body>
+</html>
