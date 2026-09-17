@@ -298,6 +298,21 @@
 
     const DAY_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
+    /** 放假区间（含首尾） */
+    const HOLIDAYS = [
+      { start: "2026-09-25", end: "2026-09-27", name: "中秋放假" },
+      { start: "2026-10-01", end: "2026-10-07", name: "国庆放假" },
+    ];
+
+    /**
+     * 调课：某日按「被补日期」的星期与单双周课表上课
+     * 9/20 补 10/6（周二）；10/10 补 10/7（周三）
+     */
+    const MAKEUP = {
+      "2026-09-20": { follow: "2026-10-06", note: "补10月6日（周二）课" },
+      "2026-10-10": { follow: "2026-10-07", note: "补10月7日（周三）课" },
+    };
+
     function parseYMD(ymd) {
       const [y, m, d] = ymd.split("-").map(Number);
       return new Date(y, m - 1, d);
@@ -311,6 +326,13 @@
       const x = new Date(d);
       x.setDate(x.getDate() + n);
       return x;
+    }
+
+    function toYMD(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
     }
 
     function getWeekNumber(date) {
@@ -331,6 +353,39 @@
       if (entry.weeks === "odd") return oddWeek(week);
       if (entry.weeks === "even") return !oddWeek(week);
       return false;
+    }
+
+    function holidayOn(date) {
+      const t = startOfDay(date).getTime();
+      return HOLIDAYS.find((h) => {
+        const a = startOfDay(parseYMD(h.start)).getTime();
+        const b = startOfDay(parseYMD(h.end)).getTime();
+        return t >= a && t <= b;
+      }) || null;
+    }
+
+    function makeupOn(date) {
+      return MAKEUP[toYMD(date)] || null;
+    }
+
+    /** 取课用：调课日跟被补日期；放假日无课 */
+    function scheduleContext(date) {
+      const holiday = holidayOn(date);
+      if (holiday) {
+        return { kind: "holiday", holiday, week: getWeekNumber(date), uniDay: uniDayOf(date) };
+      }
+      const makeup = makeupOn(date);
+      if (makeup) {
+        const follow = parseYMD(makeup.follow);
+        return {
+          kind: "makeup",
+          makeup,
+          week: getWeekNumber(follow),
+          uniDay: uniDayOf(follow),
+          follow,
+        };
+      }
+      return { kind: "normal", week: getWeekNumber(date), uniDay: uniDayOf(date) };
     }
 
     function isAdminBuilding(room) {
@@ -374,11 +429,25 @@
     }
 
     function classesFor(date) {
-      const week = getWeekNumber(date);
-      const uniDay = uniDayOf(date);
+      const ctx = scheduleContext(date);
+      if (ctx.kind === "holiday") return [];
       return SCHEDULE
-        .filter((c) => c.day === uniDay && matchesWeek(c, week))
+        .filter((c) => c.day === ctx.uniDay && matchesWeek(c, ctx.week))
         .sort((a, b) => periodIndex(a.period) - periodIndex(b.period));
+    }
+
+    function weekLabel(week) {
+      if (week <= 0) return "未开学";
+      return `第 ${week} 周 · ${oddWeek(week) ? "单周" : "双周"}`;
+    }
+
+    function dayContextNote(date) {
+      const ctx = scheduleContext(date);
+      if (ctx.kind === "holiday") return ctx.holiday.name;
+      if (ctx.kind === "makeup") {
+        return `${ctx.makeup.note} · ${weekLabel(ctx.week)} · ${DAY_NAMES[ctx.follow.getDay()]}课表`;
+      }
+      return weekLabel(ctx.week);
     }
 
     function esc(s) {
@@ -435,16 +504,31 @@
         .join("");
     }
 
-    function renderFocus(todayList) {
+    function renderFocus(todayList, todayCtx) {
       const focus = document.getElementById("focus");
       const now = new Date();
-      const uniDay = uniDayOf(now);
 
-      if (uniDay > 5 || todayList.length === 0) {
+      if (todayCtx.kind === "holiday") {
         focus.className = "focus rest";
         focus.innerHTML = `
           <div class="focus-kicker">今日状态</div>
-          <div class="focus-title">${uniDay > 5 ? "周末休息" : "今天没有课"}</div>
+          <div class="focus-title">${esc(todayCtx.holiday.name)}</div>
+          <div class="focus-sub">今天休息。往下可查看明天安排。</div>
+        `;
+        return;
+      }
+
+      if (todayList.length === 0) {
+        focus.className = "focus rest";
+        const title =
+          todayCtx.kind === "makeup"
+            ? "补课日无课程"
+            : todayCtx.uniDay > 5
+              ? "周末休息"
+              : "今天没有课";
+        focus.innerHTML = `
+          <div class="focus-kicker">今日状态</div>
+          <div class="focus-title">${title}</div>
           <div class="focus-sub">往下可查看明天安排。</div>
         `;
         return;
@@ -489,32 +573,35 @@
       const now = new Date();
       const today = startOfDay(now);
       const tomorrow = addDays(today, 1);
-      const week = getWeekNumber(today);
-      const parity = week > 0 ? (oddWeek(week) ? "单周" : "双周") : "未开学";
+      const todayCtx = scheduleContext(today);
+      const tomorrowCtx = scheduleContext(tomorrow);
 
       document.getElementById("meta").innerHTML = `
         <span>${fmtShort(today)}</span>
         <i></i>
-        <span>第 ${week > 0 ? week : "—"} 周 · ${parity}</span>
+        <span>${esc(dayContextNote(today))}</span>
       `;
 
       const todayList = classesFor(today);
       const tomorrowList = classesFor(tomorrow);
-      const tomorrowWeek = getWeekNumber(tomorrow);
-      const tomorrowParity =
-        tomorrowWeek > 0 ? (oddWeek(tomorrowWeek) ? "单周" : "双周") : "未开学";
 
-      renderFocus(todayList);
+      renderFocus(todayList, todayCtx);
+
+      const todaySub =
+        todayCtx.kind === "normal"
+          ? fmtShort(today)
+          : `${fmtShort(today)} · ${dayContextNote(today)}`;
+      const tomorrowSub = `${fmtShort(tomorrow)} · ${dayContextNote(tomorrow)}`;
 
       document.getElementById("days").innerHTML = `
         <section class="day-block">
           <div class="section">今天</div>
-          <div class="section-sub">${fmtShort(today)}</div>
+          <div class="section-sub">${esc(todaySub)}</div>
           <div class="list">${renderRows(todayList, { live: true })}</div>
         </section>
         <section class="day-block">
           <div class="section">明天</div>
-          <div class="section-sub">${fmtShort(tomorrow)} · 第 ${tomorrowWeek > 0 ? tomorrowWeek : "—"} 周 · ${tomorrowParity}</div>
+          <div class="section-sub">${esc(tomorrowSub)}</div>
           <div class="list">${renderRows(tomorrowList, { live: false })}</div>
         </section>
       `;
