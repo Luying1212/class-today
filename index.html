@@ -313,6 +313,25 @@
       "2026-10-10": { follow: "2026-10-07", note: "补10月7日（周三）课" },
     };
 
+    /**
+     * 临时停课/调出（时间待定后再补）：按「上课日」去掉对应节次
+     * 9/20 为补课日，去掉的是跟课表里的周二 3-4 节数据结构
+     */
+    const CANCELLED = [
+      {
+        date: "2026-09-20",
+        period: "3-4",
+        name: "数据库结构与算法",
+        note: "数据结构调课，时间待定",
+      },
+      {
+        date: "2026-09-21",
+        period: "1-2",
+        name: "数据库结构与算法",
+        note: "数据结构调课，时间待定",
+      },
+    ];
+
     function parseYMD(ymd) {
       const [y, m, d] = ymd.split("-").map(Number);
       return new Date(y, m - 1, d);
@@ -366,6 +385,17 @@
 
     function makeupOn(date) {
       return MAKEUP[toYMD(date)] || null;
+    }
+
+    function cancelledOn(date) {
+      const ymd = toYMD(date);
+      return CANCELLED.filter((c) => c.date === ymd);
+    }
+
+    function isCancelled(date, entry) {
+      return cancelledOn(date).some(
+        (c) => c.period === entry.period && (!c.name || c.name === entry.name)
+      );
     }
 
     /** 取课用：调课日跟被补日期；放假日无课 */
@@ -433,6 +463,7 @@
       if (ctx.kind === "holiday") return [];
       return SCHEDULE
         .filter((c) => c.day === ctx.uniDay && matchesWeek(c, ctx.week))
+        .filter((c) => !isCancelled(date, c))
         .sort((a, b) => periodIndex(a.period) - periodIndex(b.period));
     }
 
@@ -443,11 +474,17 @@
 
     function dayContextNote(date) {
       const ctx = scheduleContext(date);
-      if (ctx.kind === "holiday") return ctx.holiday.name;
-      if (ctx.kind === "makeup") {
-        return `${ctx.makeup.note} · ${weekLabel(ctx.week)} · ${DAY_NAMES[ctx.follow.getDay()]}课表`;
+      let base;
+      if (ctx.kind === "holiday") base = ctx.holiday.name;
+      else if (ctx.kind === "makeup") {
+        base = `${ctx.makeup.note} · ${weekLabel(ctx.week)} · ${DAY_NAMES[ctx.follow.getDay()]}课表`;
+      } else {
+        base = weekLabel(ctx.week);
       }
-      return weekLabel(ctx.week);
+      const cancels = cancelledOn(date);
+      if (!cancels.length) return base;
+      const notes = [...new Set(cancels.map((c) => c.note))];
+      return `${base} · ${notes.join(" · ")}`;
     }
 
     function esc(s) {
