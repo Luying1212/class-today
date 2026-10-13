@@ -314,8 +314,9 @@
     };
 
     /**
-     * 临时停课/调出（时间待定后再补）：按「上课日」去掉对应节次
+     * 临时停课/调出：按「上课日」去掉对应节次
      * 9/20 为补课日，去掉的是跟课表里的周二 3-4 节数据结构
+     * 李永康陪产假：Python 原课调出（软本4班）
      */
     const CANCELLED = [
       {
@@ -329,6 +330,55 @@
         period: "1-2",
         name: "数据库结构与算法",
         note: "数据结构调课，时间待定",
+      },
+      {
+        date: "2026-11-04",
+        period: "7-8",
+        name: "Python程序设计",
+        note: "Python 调至 10/21（第7周周三3-4）",
+      },
+      {
+        date: "2026-11-10",
+        period: "1-2",
+        name: "Python程序设计",
+        note: "Python 调至 10/19（第7周周一3-4）",
+      },
+      {
+        date: "2026-11-11",
+        period: "7-8",
+        name: "Python程序设计",
+        note: "Python 调至 10/29（第8周周四3-4）",
+      },
+    ];
+
+    /**
+     * 单次加课（调入）：指定日期插入一节，不改周课表模板
+     * 李永康陪产假 · 软本4班 Python
+     */
+    const EXTRA = [
+      {
+        date: "2026-10-19",
+        period: "3-4",
+        name: "Python程序设计",
+        teacher: "李永康",
+        room: "2313",
+        note: "补第10周周二1-2节",
+      },
+      {
+        date: "2026-10-21",
+        period: "3-4",
+        name: "Python程序设计",
+        teacher: "李永康",
+        room: "行205",
+        note: "补第9周周三7-8节",
+      },
+      {
+        date: "2026-10-29",
+        period: "3-4",
+        name: "Python程序设计",
+        teacher: "李永康",
+        room: "行205",
+        note: "补第10周周三7-8节",
       },
     ];
 
@@ -390,6 +440,20 @@
     function cancelledOn(date) {
       const ymd = toYMD(date);
       return CANCELLED.filter((c) => c.date === ymd);
+    }
+
+    function extrasOn(date) {
+      const ymd = toYMD(date);
+      return EXTRA.filter((e) => e.date === ymd).map((e) => ({
+        day: uniDayOf(date),
+        period: e.period,
+        name: e.name,
+        teacher: e.teacher,
+        room: e.room,
+        weeks: "all",
+        extra: true,
+        note: e.note,
+      }));
     }
 
     function isCancelled(date, entry) {
@@ -460,11 +524,15 @@
 
     function classesFor(date) {
       const ctx = scheduleContext(date);
-      if (ctx.kind === "holiday") return [];
-      return SCHEDULE
+      if (ctx.kind === "holiday") return extrasOn(date).sort(
+        (a, b) => periodIndex(a.period) - periodIndex(b.period)
+      );
+      const base = SCHEDULE
         .filter((c) => c.day === ctx.uniDay && matchesWeek(c, ctx.week))
-        .filter((c) => !isCancelled(date, c))
-        .sort((a, b) => periodIndex(a.period) - periodIndex(b.period));
+        .filter((c) => !isCancelled(date, c));
+      return [...base, ...extrasOn(date)].sort(
+        (a, b) => periodIndex(a.period) - periodIndex(b.period)
+      );
     }
 
     function weekLabel(week) {
@@ -481,9 +549,13 @@
       } else {
         base = weekLabel(ctx.week);
       }
-      const cancels = cancelledOn(date);
-      if (!cancels.length) return base;
-      const notes = [...new Set(cancels.map((c) => c.note))];
+      const notes = [
+        ...new Set([
+          ...cancelledOn(date).map((c) => c.note),
+          ...extrasOn(date).map((e) => e.note),
+        ]),
+      ];
+      if (!notes.length) return base;
       return `${base} · ${notes.join(" · ")}`;
     }
 
@@ -527,13 +599,17 @@
             }
           }
 
+          const extraTag = c.extra
+            ? `<div class="tag">${esc(c.note || "调课")}</div>`
+            : "";
+
           return `
             <article class="${cls}">
               <div class="when">${esc(p.start)}<br>${esc(p.end)}</div>
               <div>
                 <div class="name">${esc(c.name)}</div>
                 <div class="info">${esc(c.room)} · ${esc(c.teacher)} · ${esc(c.period)}节</div>
-                ${tag}
+                ${tag}${extraTag}
               </div>
             </article>
           `;
