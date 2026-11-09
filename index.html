@@ -296,6 +296,11 @@
       { day: 5, period: "5-6", name: "离散数学", teacher: "陈琼", room: "1306", weeks: "all" },
     ];
 
+    /** 教室变更：从生效日期起应用，保留此前的教室安排 */
+    const ROOM_CHANGES = [
+      { from: "2026-11-09", day: 2, period: "3-4", name: "数据库结构与算法", room: "1503" },
+    ];
+
     const DAY_NAMES = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
 
     /** 放假区间（含首尾） */
@@ -472,6 +477,15 @@
       }));
     }
 
+    function roomOn(date, entry) {
+      const ymd = toYMD(date);
+      const change = ROOM_CHANGES.find((c) =>
+        ymd >= c.from && c.day === entry.day &&
+        c.period === entry.period && c.name === entry.name
+      );
+      return change ? { ...entry, room: change.room } : entry;
+    }
+
     function isCancelled(date, entry) {
       return cancelledOn(date).some(
         (c) => c.period === entry.period && (!c.name || c.name === entry.name)
@@ -545,7 +559,8 @@
       );
       const base = SCHEDULE
         .filter((c) => c.day === ctx.uniDay && matchesWeek(c, ctx.week))
-        .filter((c) => !isCancelled(date, c));
+        .filter((c) => !isCancelled(date, c))
+        .map((c) => roomOn(date, c));
       return [...base, ...extrasOn(date)].sort(
         (a, b) => periodIndex(a.period) - periodIndex(b.period)
       );
